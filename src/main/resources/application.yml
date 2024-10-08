@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: usuarios
+          uri: localhost:9595
+          predicates:
+            - Path=/usuarios/
+        - id: reportes-server
+          uri: localhost:9090
+          predicates:
+            - Path=/reportes/
+        - id: contrataciones
+          uri: localhost:8585
+          predicates:
+            - Path=/contrataciones/
+        - id: auth-server
+          uri: localhost:8080
+          predicates:
+            - Path=/login/
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+jwt:
+  secret: 7123c42a4aaa8520642e0f1d935d2699936ca753fb183d5bde11df82804d04d1
+
+server:
+  port: 7575
+
+authentication:
+  enabled: true
