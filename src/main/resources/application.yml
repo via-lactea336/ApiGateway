@@ -4,20 +4,20 @@ spring:
   cloud:
     gateway:
       routes:
-        - id: usuarios
-          uri: localhost:9595
-          predicates:
-            - Path=/usuarios/
-        - id: reportes-server
+        - id: usersMicroservice
           uri: localhost:9090
+          predicates:
+            - Path=/usersMicroservice/
+        - id: reportes
+          uri: localhost:8383
           predicates:
             - Path=/reportes/
         - id: contrataciones
-          uri: localhost:8585
+          uri: localhost:8282
           predicates:
             - Path=/contrataciones/
-        - id: auth-server
-          uri: localhost:8080
+        - id: Security
+          uri: localhost:9191
           predicates:
             - Path=/login/
 eureka:
