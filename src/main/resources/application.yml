@@ -4,22 +4,24 @@ spring:
   cloud:
     gateway:
       routes:
-        - id: usersMicroservice
-          uri: localhost:9090
-          predicates:
-            - Path=/usersMicroservice/
-        - id: reportes
-          uri: localhost:8383
-          predicates:
-            - Path=/reportes/
-        - id: contrataciones
-          uri: localhost:8282
-          predicates:
-            - Path=/contrataciones/
+        # Microservicio de seguridad
         - id: Security
-          uri: localhost:9191
+          uri: http://localhost:9191
           predicates:
-            - Path=/login/
+            - Path=/api/auth/login
+            - Path=/api/auth/register
+            - Path=/api/roles # Para roles
+
+        # Microservicio de calificaciones
+        - id: Bryan
+          uri: http://localhost:8383
+          predicates:
+            - Path=/api/calificaciones/**
+            - Path=/api/calificaciones-detalle/**
+            - Path=/api/categorias/**
+            - Path=/api/tipos-de-precio/**
+            - Path=/api/estados/**
+
 eureka:
   client:
     service-url:

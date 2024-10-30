@@ -19,7 +19,7 @@ public class RouteValidator {
     @Autowired
     private TokenUtil tokenUtil;
 
-    public static final List<String> unprotectedURLs = List.of("/login");
+    public static final List<String> unprotectedURLs = List.of("/api/auth/login","/api/auth/register");
 
     public Predicate<ServerHttpRequest> isSecured = request -> unprotectedURLs.stream().noneMatch(uri -> request.getURI().getPath().contains(uri));
 

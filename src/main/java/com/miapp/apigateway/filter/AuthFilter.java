@@ -1,12 +1,13 @@
 package com.miapp.apigateway.filter;
 
-import com.miapp.apigateway.util.AuthUtil;
+import com.miapp.apigateway.util.JwtTokenProviderT;
 import com.miapp.apigateway.validator.RouteValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
-import org.springframework.cloud.gateway.filter.factory.GatewayFilterFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -16,55 +17,66 @@ import reactor.core.publisher.Mono;
 @Component
 public class AuthFilter implements GatewayFilter {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthFilter.class);
+
     @Autowired
     private RouteValidator routeValidator;
 
-    @Autowired
-    private AuthUtil authUtil;
+
 
     @Value("${authentication.enabled:true}")
     private boolean authEnabled;
 
+    @Autowired
+    private JwtTokenProviderT jwtTokenProvider; // Añade JwtTokenProvider para la validación del token
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         if (!authEnabled) {
-            System.out.println("Authentication is disabled. To enable it, make \"authentication.enabled\" property as true");
+            logger.info("Authentication is disabled.");
             return chain.filter(exchange);
         }
 
-        String token = "";
         ServerHttpRequest request = exchange.getRequest();
+        logger.info("Request Path: {}", request.getURI().getPath());
 
         if (routeValidator.isSecured.test(request)) {
-            System.out.println("validating authentication token");
-            if (isMissingCredentials(request)) {
-                System.out.println("in error");
-                return this.onError(exchange, "Credentials missing", HttpStatus.UNAUTHORIZED);
-            }
+            logger.info("Validating authentication token");
 
-            // Validación del token
-            if (request.getHeaders().containsKey("username") && request.getHeaders().containsKey("role")) {
-                token = authUtil.getToken(request.getHeaders().get("username").toString(), request.getHeaders().get("role").toString());
+            // Obtener el token JWT de la cabecera Authorization
+            String token = resolveToken(request);
+            logger.info("Token: {}", token);
+            if (token != null) {
+                // Validar el token
+                if (!jwtTokenProvider.validateToken(token)) {
+                    return onError(exchange, "Invalid token", HttpStatus.UNAUTHORIZED);
+                }
+
+                // Extraer información del token
+                String username = jwtTokenProvider.getUsernameFromToken(token);
+                String role = jwtTokenProvider.getRoleFromToken(token);
+                logger.info("Authenticated user: {}, Role: {}", username, role);
+
             } else {
-                token = request.getHeaders().get("Authorization").toString().split(" ")[1];
+                return onError(exchange, "Authorization header is missing or invalid", HttpStatus.UNAUTHORIZED);
             }
 
-            if (authUtil.isInvalid(token)) {
-                return this.onError(exchange, "Auth header invalid", HttpStatus.UNAUTHORIZED);
-            }
-
-            System.out.println("Authentication is successful");
+            logger.info("Authentication is successful");
+        } else {
+            logger.info("Route is not secured, proceeding without authentication");
         }
 
         return chain.filter(exchange);
     }
 
-    private boolean isMissingCredentials(ServerHttpRequest request) {
-        return !request.getHeaders().containsKey("username") || !request.getHeaders().containsKey("role");
+    private String resolveToken(ServerHttpRequest request) {
+        String bearerToken = request.getHeaders().getFirst("Authorization");
+        return bearerToken != null && bearerToken.startsWith("Bearer ") ? bearerToken.substring(7) : null;
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String errorMsg, HttpStatus status) {
-        // Manejo del error, puedes personalizarlo según tus necesidades
+        logger.error("Error: {}, Status: {}", errorMsg, status);
+        exchange.getResponse().setStatusCode(status);
         return exchange.getResponse().setComplete();
     }
 }
